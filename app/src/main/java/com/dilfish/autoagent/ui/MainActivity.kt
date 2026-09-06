@@ -552,16 +552,16 @@ fun SettingsScreen() {
                         OutlinedButton(onClick = { provMenu = true }) {
                             Text(
                                 when (provider) {
-                                    "anthropic" -> "Anthropic (Claude)"
-                                    "gemini" -> "Gemini"
-                                    else -> "OpenAI 兼容"
+                                    "responses" -> "OpenAI Responses"
+                                    "anthropic" -> "Anthropic Messages"
+                                    else -> "OpenAI Chat Completions"
                                 },
                             )
                         }
                         DropdownMenu(expanded = provMenu, onDismissRequest = { provMenu = false }) {
-                            DropdownMenuItem(text = { Text("OpenAI 兼容") }, onClick = { provider = "openai"; provMenu = false })
-                            DropdownMenuItem(text = { Text("Anthropic (Claude)") }, onClick = { provider = "anthropic"; provMenu = false })
-                            DropdownMenuItem(text = { Text("Gemini") }, onClick = { provider = "gemini"; provMenu = false })
+                            DropdownMenuItem(text = { Text("OpenAI Chat Completions") }, onClick = { provider = "openai"; provMenu = false })
+                            DropdownMenuItem(text = { Text("OpenAI Responses") }, onClick = { provider = "responses"; provMenu = false })
+                            DropdownMenuItem(text = { Text("Anthropic Messages") }, onClick = { provider = "anthropic"; provMenu = false })
                         }
                     }
                 }
@@ -570,9 +570,9 @@ fun SettingsScreen() {
                     label = {
                         Text(
                             when (provider) {
+                                "responses" -> "Base URL（如 https://api.openai.com/v1，拼 /responses）"
                                 "anthropic" -> "Base URL（留空 = https://api.anthropic.com）"
-                                "gemini" -> "Base URL（留空 = 官方 generativelanguage.googleapis.com）"
-                                else -> "Base URL（如 https://api.xx.com/v1）"
+                                else -> "Base URL（如 https://api.xx.com/v1，拼 /chat/completions）"
                             },
                         )
                     },

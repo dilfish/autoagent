@@ -7,8 +7,8 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -30,11 +30,11 @@ interface LlmProvider {
     suspend fun chat(messages: List<ChatMessage>): String
 }
 
-/** 三种主流协议的工厂 */
+/** 接入协议的工厂：Chat Completions / Responses / Messages（pi agent 由独立的 PiSource 承担） */
 object LlmFactory {
     fun create(type: String, baseUrl: String, apiKey: String, model: String): LlmProvider = when (type) {
+        "responses" -> OpenAiResponsesProvider(baseUrl, apiKey, model)
         "anthropic" -> AnthropicProvider(baseUrl, apiKey, model)
-        "gemini" -> GeminiProvider(baseUrl, apiKey, model)
         else -> OpenAiCompatProvider(baseUrl, apiKey, model)
     }
 }
@@ -83,7 +83,41 @@ class OpenAiCompatProvider(
     }
 }
 
-/** 2. Anthropic 协议（Claude） */
+/** 2. OpenAI Responses 协议（/v1/responses，新一代有状态接口） */
+class OpenAiResponsesProvider(
+    private val baseUrl: String,
+    private val apiKey: String,
+    private val model: String,
+) : LlmProvider, BaseHttpProvider() {
+
+    override val label = "OpenAI Responses"
+
+    override suspend fun chat(messages: List<ChatMessage>): String {
+        val instructions = messages.filter { it.role == "system" }.joinToString("\n") { it.content }
+        val input = messages.filter { it.role != "system" }.map {
+            JsonObject(mapOf("role" to JsonPrimitive(it.role), "content" to JsonPrimitive(it.content)))
+        }
+        val body = buildJsonObject {
+            put("model", model)
+            put("temperature", 0.2)
+            put("max_output_tokens", 8192)
+            if (instructions.isNotBlank()) put("instructions", instructions)
+            put("input", JsonArray(input))
+        }
+        val resp = post("$baseUrl/responses", mapOf("Authorization" to "Bearer $apiKey"), body.toString())
+        val output = resp["output"]?.jsonArray ?: throw RuntimeException("Responses 响应缺少 output")
+        val text = output.asSequence()
+            .filter { it.jsonObject["type"]?.jsonPrimitive?.contentOrNull == "message" }
+            .flatMap { it.jsonObject["content"]?.jsonArray ?: emptyList() }
+            .filter { it.jsonObject["type"]?.jsonPrimitive?.contentOrNull == "output_text" }
+            .mapNotNull { it.jsonObject["text"]?.jsonPrimitive?.contentOrNull }
+            .joinToString("")
+        if (text.isBlank()) throw RuntimeException("Responses 响应无文本内容")
+        return text
+    }
+}
+
+/** 3. Anthropic Messages 协议（Claude） */
 class AnthropicProvider(
     baseUrl: String,
     private val apiKey: String,
@@ -117,49 +151,5 @@ class AnthropicProvider(
         }.joinToString("")
         if (text.isBlank()) throw RuntimeException("Anthropic 响应无文本内容")
         return text
-    }
-}
-
-/** 3. Google Gemini 协议 */
-class GeminiProvider(
-    baseUrl: String,
-    private val apiKey: String,
-    private val model: String,
-) : LlmProvider, BaseHttpProvider() {
-
-    override val label = "Gemini"
-    private val base = baseUrl.ifBlank { "https://generativelanguage.googleapis.com/v1beta" }
-
-    override suspend fun chat(messages: List<ChatMessage>): String {
-        val system = messages.filter { it.role == "system" }.joinToString("\n") { it.content }
-        val dialog = messages.filter { it.role != "system" }.map {
-            // Gemini 的助手角色叫 "model"
-            if (it.role == "assistant") "model" to it.content else it.role to it.content
-        }
-        val body = buildJsonObject {
-            if (system.isNotBlank()) {
-                put("system_instruction", buildJsonObject {
-                    put("parts", buildJsonArray { add(buildJsonObject { put("text", system) }) })
-                })
-            }
-            put("contents", JsonArray(dialog.map { (role, content) ->
-                buildJsonObject {
-                    put("role", role)
-                    put("parts", buildJsonArray { add(buildJsonObject { put("text", content) }) })
-                }
-            }))
-            put("generationConfig", buildJsonObject { put("temperature", 0.2) })
-        }
-        val resp = post(
-            "$base/models/$model:generateContent?key=$apiKey",
-            emptyMap(),
-            body.toString(),
-        )
-        return resp["candidates"]?.jsonArray?.get(0)?.jsonObject
-            ?.get("content")?.jsonObject?.get("parts")?.jsonArray
-            ?.mapNotNull { p -> p.jsonObject["text"]?.jsonPrimitive?.content }
-            ?.joinToString("")
-            ?.takeIf { it.isNotBlank() }
-            ?: throw RuntimeException("Gemini 响应缺少文本")
     }
 }

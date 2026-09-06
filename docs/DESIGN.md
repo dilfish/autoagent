@@ -98,12 +98,12 @@ start(source, task):
   `scroll up`、`back/home/recents`、`wait 1000`、`getElements`、`done/fail`、原始 JSON
 - 用于调试协议与人工单步操作
 
-### B3 LlmSource（内置 LLM）✅ 支持三种主流协议
-- 协议抽象 `ai/LlmProvider`，三种实现由设置页下拉选择：
-  1. **OpenAI 兼容**（默认）：`POST {base_url}/chat/completions`，Bearer 认证 —— DeepSeek/Qwen/Moonshot/qiniu 等绝大多数服务
-  2. **Anthropic**：`POST {base}/v1/messages`，`x-api-key` + `anthropic-version` 头，system 独立于 messages，必须带 max_tokens
-  3. **Gemini**：`POST {base}/models/{model}:generateContent?key=...`，system 放 `system_instruction`，assistant 角色名是 `model`
-- Anthropic/Gemini 的 Base URL 留空时用官方端点；OpenAI 兼容必须填（各服务商路径不一）
+### B3 LlmSource（内置 LLM）✅ 支持三种接口范式
+- 协议抽象 `ai/LlmProvider`，设置页下拉选择（用户确认的三种，不含 Gemini）：
+  1. **OpenAI Chat Completions**（默认）：`POST {base_url}/chat/completions`，Bearer 认证 —— 事实标准，DeepSeek/Qwen/Moonshot/qiniu 等绝大多数服务
+  2. **OpenAI Responses**：`POST {base_url}/responses`，system 放 `instructions` 字段，输入是 `input` 数组，文本从 `output[]` 的 message/output_text 提取，须带 `max_output_tokens`
+  3. **Anthropic Messages**：`POST {base}/v1/messages`，`x-api-key` + `anthropic-version` 头，system 独立于 messages，必须带 `max_tokens`
+- Anthropic 的 Base URL 留空用官方端点；OpenAI 系必须填（拼 /chat/completions 或 /responses）
 - system prompt：命令协议说明书 + 规则（元素编号易变、失败自纠、禁操作支付页等）
 - user 消息：当前快照 + 最近 6 步执行结果（命令→成功/失败）
 - 回复解析 `ai/ReplyParser`：容忍 ```json 围栏 / 裸数组 / 夹带文本（括号配对扫描）；
