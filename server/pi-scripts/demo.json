@@ -1,0 +1,8 @@
+{
+  "name": "demo",
+  "steps": [
+    { "reply": "[{\"type\":\"click\",\"elementId\":3}]" },
+    { "reply": "[{\"type\":\"wait\",\"ms\":800},{\"type\":\"getElements\"}]" },
+    { "reply": "[{\"type\":\"done\",\"summary\":\"演示任务完成\"}]" }
+  ]
+}

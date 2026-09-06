@@ -48,3 +48,14 @@ APK 输出：`app/build/outputs/apk/debug/app-debug.apk`（debug 签名，可直
 - 手机端：设置页填 ws://your.server.com:8787/ws/phone + token
 - 电脑端：浏览器打开 http://your.server.com:8787/?token=你的token
   左侧实时节点树 + 截图，右侧命令行直接操作她的手机
+
+## 离线调试 pi（不依赖真 pi/SSH）
+
+```
+npm --prefix server run pi-stub        # 桌面起 stub（:8788，按 pi-scripts/demo.json 回固定命令）
+```
+
+- 手机与电脑同 WiFi，App 设置页 → pi agent → 后端切"桌面 stub（调试）"，填 `http://<电脑IP>:8788`
+- 每步 prompt/reply 自动落盘到 `filesDir/pi-trace/<时间>/`，设置页"回放最新录制"可复检坏回复
+- 复现某次真机运行：`node server/pi-stub.js --replay <trace目录>`
+- 单测：`./gradlew :app:testDebugUnitTest`（ReplyParser / 剧本 / 录制，无需真机）

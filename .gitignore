@@ -6,3 +6,4 @@ local.properties
 .DS_Store
 .zcode/
 node_modules/
+server/.pi-stub-log/

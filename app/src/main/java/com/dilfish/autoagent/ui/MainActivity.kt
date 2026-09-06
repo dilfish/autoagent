@@ -58,11 +58,13 @@ import androidx.compose.ui.unit.sp
 import com.dilfish.autoagent.accessibility.ClickAccessibilityService
 import com.dilfish.autoagent.ai.LlmFactory
 import com.dilfish.autoagent.ai.LlmSource
+import com.dilfish.autoagent.ai.ReplyParser
 import com.dilfish.autoagent.console.ConsoleSession
 import com.dilfish.autoagent.engine.AgentBus
 import com.dilfish.autoagent.engine.TaskContext
 import com.dilfish.autoagent.engine.TaskRunner
 import com.dilfish.autoagent.pi.PiSource
+import com.dilfish.autoagent.pi.PiTrace
 import com.dilfish.autoagent.remote.RemoteManager
 import com.dilfish.autoagent.settings.AppSettings
 import com.dilfish.autoagent.shot.ProjectionService
@@ -687,10 +689,57 @@ fun SettingsScreen() {
                     label = { Text("pi 可执行文件路径") },
                     modifier = Modifier.fillMaxWidth(),
                 )
-                Button(onClick = {
-                    AppSettings.setPi(context, piHost, piPort.toIntOrNull() ?: 22, piUser, piPassword, piBin)
-                    AgentBus.log("pi 配置已保存")
-                }) { Text("保存") }
+                var piStubMode by remember { mutableStateOf(AppSettings.piMode(context) == AppSettings.PI_MODE_STUB) }
+                var piStubUrl by remember { mutableStateOf(AppSettings.piStubUrl(context)) }
+                var stubMenu by remember { mutableStateOf(false) }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("后端：", fontSize = 13.sp)
+                    Box {
+                        OutlinedButton(onClick = { stubMenu = true }) {
+                            Text(if (piStubMode) "桌面 stub（调试）" else "SSH 真 pi")
+                        }
+                        DropdownMenu(expanded = stubMenu, onDismissRequest = { stubMenu = false }) {
+                            DropdownMenuItem(text = { Text("SSH 真 pi") }, onClick = { piStubMode = false; stubMenu = false })
+                            DropdownMenuItem(text = { Text("桌面 stub（调试）") }, onClick = { piStubMode = true; stubMenu = false })
+                        }
+                    }
+                }
+                if (piStubMode) {
+                    OutlinedTextField(
+                        value = piStubUrl, onValueChange = { piStubUrl = it },
+                        label = { Text("pi-stub 地址（如 http://192.168.1.5:8788）") },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = {
+                        AppSettings.setPi(context, piHost, piPort.toIntOrNull() ?: 22, piUser, piPassword, piBin)
+                        AppSettings.setPiBackend(
+                            context,
+                            if (piStubMode) AppSettings.PI_MODE_STUB else AppSettings.PI_MODE_SSH,
+                            piStubUrl,
+                        )
+                        AgentBus.log("pi 配置已保存")
+                    }) { Text("保存") }
+                    OutlinedButton(onClick = {
+                        val sessions = PiTrace.listSessions(context.filesDir)
+                        if (sessions.isEmpty()) {
+                            AgentBus.log("暂无 pi-trace 录制")
+                        } else {
+                            val latest = sessions.first()
+                            val fails = latest.listFiles { f -> f.name.endsWith("-reply.txt") }
+                                .orEmpty().sortedBy { it.name }
+                                .mapNotNull { f ->
+                                    val parsed = ReplyParser.parse(f.readText())
+                                    if (parsed == null) f.name else null
+                                }
+                            AgentBus.log(
+                                "回放 ${latest.name}：共 ${latest.listFiles { f -> f.name.endsWith("-reply.txt") }.orEmpty().size} 步" +
+                                    if (fails.isEmpty()) "，全部可解析" else "，解析失败: ${fails.joinToString(",")}",
+                            )
+                        }
+                    }) { Text("回放最新录制") }
+                }
             }
         }
 

@@ -121,6 +121,20 @@ start(source, task):
 - 每步一次 SSH exec，实现简单、无长连接协议负担（v1 权衡；后续可改 `pi --mode rpc` 长会话）
 - UI：设置页 pi 服务器配置卡；主页"大脑"下拉切换 内置 LLM / pi agent
 
+### B4 调试模式：PiBackend + pi-stub + PiTrace（不依赖真 pi）
+- `pi/PiBackend` 接口：`SshCliBackend`（线上行为，原 SSH exec 不变）/
+  `HttpStubBackend`（POST payload 到桌面 stub，超时 120s 对齐）；`PiSource` 只组 prompt+解析，
+  后端由设置页 `pi_mode`（ssh | http-stub）切换，老 `PiSource(ctx)` 调用兼容。
+- 桌面 stub：`server/pi-stub.js`（纯 Node http，默认 :8788，无新依赖），
+  `POST /v1/next` 按剧本（`server/pi-scripts/*.json`，超步重复最后一步）回 `{"reply":"..."}`，
+  收到的 payload 落盘 `server/.pi-stub-log/`；`GET /v1/status`、`POST /v1/reset`、`GET /` 调试页；
+  `--replay <trace目录>` 可把某次真机录制当剧本 serve。剧本由 JVM 单测校验
+  （`PiScriptTest`：每步 reply 可解析，或 `expectParseFail` 标记为坏用例，如 `bad-reply.json`）。
+- 录制：`pi/PiTrace` 每步写 `stepNN-prompt.txt / stepNN-reply.txt（或 -error.txt）/ stepNN-meta.json`
+  到 `filesDir/pi-trace/<时间>/`；设置页"回放最新录制"用 `ReplyParser` 复检全部 reply。
+  注意 `ReplyParser` 解析成功后会补发本地 `cmdId`（模型按协议不输出该字段）。
+- 联调要求手机与电脑同局域网，防火墙放行 8788。
+
 ### B5 RemoteClient（远程人工指挥）
 - 手机端 OkHttp WebSocket **主动外连** ddeb 中转（无 NAT 问题），2s→30s 指数退避重连
 - 推送：hello（设备名）、每次快照更新（snapshot）

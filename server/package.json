@@ -1,4 +1,8 @@
 {
+  "scripts": {
+    "relay": "node relay.js",
+    "pi-stub": "node pi-stub.js --script ./pi-scripts/demo.json"
+  },
   "dependencies": {
     "ws": "^8.21.3"
   }

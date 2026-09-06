@@ -26,13 +26,28 @@ object ReplyParser {
 
     private fun decode(s: String): List<Command>? = try {
         val element = normalize(json.parseToJsonElement(s))
-        when {
+        val parsed = when {
             element is kotlinx.serialization.json.JsonArray ->
                 json.decodeFromJsonElement(kotlinx.serialization.builtins.ListSerializer(Command.serializer()), element.jsonArray)
             else -> listOf(json.decodeFromJsonElement(Command.serializer(), element))
         }
+        // 模型按协议只输出 type+参数，不带 cmdId（本地编号），这里统一换成本地编号
+        parsed.map { withId(it, Command.nextId()) }
     } catch (_: Exception) {
         null
+    }
+
+    private fun withId(cmd: Command, cmdId: Int): Command = when (cmd) {
+        is Command.Click -> cmd.copy(cmdId = cmdId)
+        is Command.LongClick -> cmd.copy(cmdId = cmdId)
+        is Command.Swipe -> cmd.copy(cmdId = cmdId)
+        is Command.InputText -> cmd.copy(cmdId = cmdId)
+        is Command.Scroll -> cmd.copy(cmdId = cmdId)
+        is Command.GlobalAction -> cmd.copy(cmdId = cmdId)
+        is Command.GetElements -> cmd.copy(cmdId = cmdId)
+        is Command.Wait -> cmd.copy(cmdId = cmdId)
+        is Command.Done -> cmd.copy(cmdId = cmdId)
+        is Command.Fail -> cmd.copy(cmdId = cmdId)
     }
 
     /**
@@ -44,7 +59,7 @@ object ReplyParser {
             is kotlinx.serialization.json.JsonArray ->
                 kotlinx.serialization.json.JsonArray(e.map { normalize(it) })
             is kotlinx.serialization.json.JsonObject -> {
-                if (e.containsKey("type")) {
+                val obj = if (e.containsKey("type")) {
                     e
                 } else {
                     val action = (e["action"] as? kotlinx.serialization.json.JsonPrimitive)?.content?.lowercase()
@@ -78,6 +93,12 @@ object ReplyParser {
                         }
                     }
                 }
+                // cmdId 是本地编号，模型不输出；缺失时先占位，反序列化后再换成本地编号
+                if (obj.containsKey("cmdId")) obj else kotlinx.serialization.json.JsonObject(
+                    obj.toMutableMap().apply {
+                        put("cmdId", kotlinx.serialization.json.JsonPrimitive(0))
+                    },
+                )
             }
             else -> e
         }

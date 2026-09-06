@@ -11,55 +11,32 @@ import com.dilfish.autoagent.engine.TaskContext
 import com.dilfish.autoagent.settings.AppSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import net.schmizz.sshj.DefaultConfig
-import net.schmizz.sshj.SSHClient
-import net.schmizz.sshj.common.IOUtils
-import net.schmizz.sshj.transport.verification.PromiscuousVerifier
-import java.security.Security
-import java.util.concurrent.TimeUnit
+import java.io.File
 
 /**
- * B4 pi agent 对接：SSH 到服务器，调用 `pi -p --no-session --no-tools`，
- * 把任务+节点树快照+历史通过 stdin 发给 pi，从回复解析 JSON 命令块。
- * 模型/Provider 复用服务器上 pi 的配置。每步一次 SSH exec（v1 权衡，见 docs/DESIGN.md）。
+ * B4 pi agent 对接：prompt 组装 + reply 解析走这里，
+ * 具体执行交给 PiBackend（真 pi 经 SSH / 调试走桌面 stub）。
+ * 每步 prompt/reply 落盘到 PiTrace，坏回复可事后回放复现。
  */
 class PiSource(
     private val appContext: Context,
     private val historyLimit: Int = 6,
+    private val backend: PiBackend = defaultBackend(appContext),
 ) : CommandSource {
 
     override val id = "pi"
     override val label = "pi"
 
-    private var ssh: SSHClient? = null
+    private var traceDir: File? = null
+    private var stepNo = 0
 
-    private fun binPath() = AppSettings.piBinPath(appContext)
-
-    private fun cmdPrefix(): String {
-        val bin = binPath()
-        val dir = bin.substringBeforeLast('/')
-        // pi 是脚本，依赖 node；服务器 PATH 只在 .zshrc，非交互 SSH 必须手动补
-        return "export PATH=\"$dir:\$PATH\"; \"$bin\""
-    }
+    /** 兼容老调用：MainActivity 原 `PiSource(ctx)` 不用改也能编译。 */
+    constructor(appContext: Context) : this(appContext, 6, defaultBackend(appContext))
 
     override suspend fun start(task: TaskContext) {
-        withContext(Dispatchers.IO) {
-            try {
-                Security.addProvider(org.bouncycastle.jce.provider.BouncyCastleProvider())
-            } catch (_: Exception) {
-            }
-            val host = AppSettings.piHost(appContext)
-            if (host.isEmpty()) throw RuntimeException("请先在设置里配置 pi 服务器")
-            val client = SSHClient(DefaultConfig())
-            client.addHostKeyVerifier(PromiscuousVerifier())
-            client.connect(host, AppSettings.piPort(appContext))
-            client.authPassword(
-                AppSettings.piUser(appContext),
-                AppSettings.piPassword(appContext),
-            )
-            ssh = client
-            AgentBus.log("已连接 pi 服务器 $host")
-        }
+        traceDir = PiTrace.newSessionDir(appContext.filesDir)
+        stepNo = 0
+        backend.start()
     }
 
     override suspend fun nextStep(
@@ -81,43 +58,35 @@ class PiSource(
             }
             appendLine("请只输出一个 JSON 命令数组。")
         }
-        val reply = withContext(Dispatchers.IO) { execPi(payload) }
+        stepNo++
+        val dir = traceDir ?: PiTrace.newSessionDir(appContext.filesDir).also { traceDir = it }
+        val backendId = backend.javaClass.simpleName
+        val reply = try {
+            withContext(Dispatchers.IO) { backend.exec(payload) }
+        } catch (t: Throwable) {
+            PiTrace.record(dir, stepNo, payload, reply = null, error = (t.message ?: t.toString()), backendId)
+            AgentBus.log("pi-trace: ${dir.name}/step%02d（失败）".format(stepNo))
+            throw t
+        }
+        PiTrace.record(dir, stepNo, payload, reply = reply, error = null, backendId)
         AgentBus.log("pi: ${reply.take(200)}")
+        AgentBus.log("pi-trace: ${dir.name}/step%02d".format(stepNo))
         return ReplyParser.parse(reply)
             ?: throw RuntimeException("无法从 pi 回复解析命令")
     }
 
-    private fun execPi(payload: String): String {
-        val client = ssh ?: throw RuntimeException("SSH 未连接")
-        val session = client.startSession()
-        try {
-            val cmd = session.exec("${cmdPrefix()} -p --no-session --no-tools")
-            cmd.outputStream.write(payload.toByteArray())
-            cmd.outputStream.flush()
-            cmd.outputStream.close()
-            val out = IOUtils.readFully(cmd.inputStream).toString()
-            val err = try {
-                IOUtils.readFully(cmd.errorStream).toString()
-            } catch (_: Exception) {
-                ""
-            }
-            cmd.join(120, TimeUnit.SECONDS)
-            if (out.isBlank() && err.isNotBlank()) throw RuntimeException("pi 执行失败: ${err.take(300)}")
-            return out
-        } finally {
-            session.close()
-        }
-    }
-
     override fun stop() {
-        try {
-            ssh?.disconnect()
-        } catch (_: Exception) {
-        }
-        ssh = null
+        backend.stop()
     }
 
     private companion object {
+        fun defaultBackend(ctx: Context): PiBackend =
+            if (AppSettings.piMode(ctx) == AppSettings.PI_MODE_STUB) {
+                HttpStubBackend(ctx)
+            } else {
+                SshCliBackend(ctx)
+            }
+
         val PROTOCOL_HINT = """
 你是安卓手机自动化助手，通过无障碍节点树快照感知屏幕，每行一个元素：
 [03] Button "下一步" id=com.app:id/next 点 (540,1100)

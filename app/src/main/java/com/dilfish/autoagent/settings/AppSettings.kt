@@ -36,6 +36,10 @@ object AppSettings {
     }
 
     // ---- B4 pi agent ----
+    const val PI_MODE_SSH = "ssh"
+    const val PI_MODE_STUB = "http-stub"
+    fun piMode(ctx: Context): String = prefs(ctx).getString("pi_mode", PI_MODE_SSH) ?: PI_MODE_SSH
+    fun piStubUrl(ctx: Context): String = prefs(ctx).getString("pi_stub_url", "") ?: ""
     fun piHost(ctx: Context): String = prefs(ctx).getString("pi_host", "") ?: ""
     fun piPort(ctx: Context): Int = prefs(ctx).getString("pi_port", "22")?.toIntOrNull() ?: 22
     fun piUser(ctx: Context): String = prefs(ctx).getString("pi_user", "root") ?: "root"
@@ -50,6 +54,13 @@ object AppSettings {
             .putString("pi_user", user.trim())
             .putString("pi_password", password)
             .putString("pi_bin_path", binPath.trim())
+            .apply()
+    }
+
+    fun setPiBackend(ctx: Context, mode: String, stubUrl: String) {
+        prefs(ctx).edit()
+            .putString("pi_mode", if (mode == PI_MODE_STUB) PI_MODE_STUB else PI_MODE_SSH)
+            .putString("pi_stub_url", stubUrl.trim().removeSuffix("/"))
             .apply()
     }
 }

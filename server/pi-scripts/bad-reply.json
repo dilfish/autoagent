@@ -1,0 +1,6 @@
+{
+  "name": "bad-reply",
+  "steps": [
+    { "reply": "[{\"type\":\"click\",\"elementId\":", "expectParseFail": true }
+  ]
+}
