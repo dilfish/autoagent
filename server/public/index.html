@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>AutoAgent 远程控制</title>
+<style>
+  body { font-family: -apple-system, "PingFang SC", sans-serif; margin: 0; display: flex; height: 100vh; }
+  #left { flex: 1; display: flex; flex-direction: column; border-right: 1px solid #ddd; }
+  #right { width: 420px; display: flex; flex-direction: column; }
+  header { padding: 8px 12px; background: #f5f5f5; border-bottom: 1px solid #ddd; font-size: 14px; }
+  pre#tree { flex: 1; overflow: auto; margin: 0; padding: 10px; font-size: 12.5px; line-height: 1.5; white-space: pre-wrap; }
+  #shot { max-width: 100%; display: none; }
+  #log { height: 45%; overflow: auto; padding: 8px; font-size: 12.5px; border-top: 1px solid #ddd; }
+  form { display: flex; gap: 6px; padding: 8px; border-top: 1px solid #ddd; }
+  input#cmd { flex: 1; padding: 8px; font-family: ui-monospace, monospace; }
+  button { padding: 8px 14px; }
+  .row { display: flex; gap: 6px; padding: 8px; }
+  .ok { color: #1a7f37; } .err { color: #c0392b; }
+</style>
+</head>
+<body>
+<div id="left">
+  <header>设备: <b id="device">未连接</b> · 手机 <span id="status" class="err">离线</span></header>
+  <pre id="tree">（等待手机节点树快照…）</pre>
+  <div class="row">
+    <button id="refresh">刷新元素</button>
+    <button id="shotBtn">截图（需手机端开启）</button>
+  </div>
+  <img id="shot" alt="">
+</div>
+<div id="right">
+  <div id="log"></div>
+  <form id="cmdForm">
+    <input id="cmd" placeholder='click [03]  |  inputText [02] 你好  |  back  |  home  |  {"x":540,"y":1200}'>
+    <button>发送</button>
+  </form>
+</div>
+<script>
+const qs = new URLSearchParams(location.search);
+const wsProto = location.protocol === 'https:' ? 'wss' : 'ws';
+const ws = new WebSocket(`${wsProto}://${location.host}/ws/operator?token=${qs.get('token')}`);
+const log = (line, cls) => {
+  const d = document.createElement('div');
+  if (cls) d.className = cls;
+  d.textContent = line;
+  document.getElementById('log').appendChild(d);
+  document.getElementById('log').scrollTop = 1e9;
+};
+
+ws.onopen = () => log('已连接中转服务');
+ws.onclose = () => log('与中转服务断开', 'err');
+ws.onmessage = (e) => {
+  let m; try { m = JSON.parse(e.data); } catch { return; }
+  switch (m.type) {
+    case 'device': document.getElementById('device').textContent = m.device; break;
+    case 'status':
+      document.getElementById('status').textContent = m.phoneConnected ? '在线' : '离线';
+      document.getElementById('status').className = m.phoneConnected ? 'ok' : 'err';
+      break;
+    case 'snapshot': document.getElementById('tree').textContent = m.text; break;
+    case 'result': log(`#${m.cmdId} ${m.ok ? '✓ 成功' : '✗ ' + (m.error || '失败')}`, m.ok ? 'ok' : 'err'); break;
+    case 'screenshot': {
+      const img = document.getElementById('shot');
+      img.src = 'data:image/jpeg;base64,' + m.data;
+      img.style.display = 'block';
+      break;
+    }
+  }
+};
+
+let cmdSeq = 1;
+// 把快捷命令解析成协议 JSON
+function parseCmd(input) {
+  const t = input.trim();
+  const ref = (s) => { const m = s.match(/\[(\d+)\]/); return m ? parseInt(m[1]) : null; };
+  if (t === 'back' || t === 'home' || t === 'recents') return { type: 'globalAction', action: t };
+  if (t === 'refresh' || t === 'getElements') return { type: 'getElements' };
+  const it = t.match(/^inputText\s*\[(\d+)\]\s*(.*)$/);
+  if (it) return { type: 'inputText', elementId: parseInt(it[1]), text: it[2] };
+  const click = t.match(/^(click|longClick)?\s*(\[\d+\]|-?\d+)\s*[ ,]?\s*(-?\d+)?\s*$/);
+  if (click) {
+    const act = click[1] || 'click';
+    if (click[3] !== undefined) return { type: act, x: parseFloat(click[2]), y: parseFloat(click[3]) };
+    const id = ref(click[2]);
+    if (id !== null) return { type: act, elementId: id };
+  }
+  try { return JSON.parse(t); } catch { return null; }
+}
+
+document.getElementById('cmdForm').onsubmit = (ev) => {
+  ev.preventDefault();
+  const input = document.getElementById('cmd').value;
+  const cmd = parseCmd(input);
+  if (!cmd) return log('无法解析命令: ' + input, 'err');
+  if (!cmd.cmdId) cmd.cmdId = cmdSeq++;
+  if (!cmd.type) cmd.type = 'click';
+  ws.send(JSON.stringify({ type: 'command', cmd }));
+  log('→ ' + JSON.stringify(cmd));
+  document.getElementById('cmd').value = '';
+};
+document.getElementById('refresh').onclick = () => {
+  ws.send(JSON.stringify({ type: 'command', cmd: { cmdId: cmdSeq++, type: 'getElements' } }));
+};
+document.getElementById('shotBtn').onclick = () => {
+  ws.send(JSON.stringify({ type: 'screenshotRequest', reqId: Date.now() }));
+};
+</script>
+</body>
+</html>
