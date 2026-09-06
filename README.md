@@ -12,7 +12,7 @@
          执行: click / longClick / inputText / swipe / scroll / back / home / getElements / wait
 模块 B  命令生成器（统一接口，可插拔）
          B1 手动脚本（纯本地连点器）   B2 指令控制台
-         B3 内置 LLM（OpenAI 兼容）    B4 pi agent（设计预留，未实现）
+         B3 内置 LLM（OpenAI 兼容）    B4 pi agent（ddeb SSH + pi -p）
          B5 远程人工指挥（经 ddeb 中转，浏览器控制页）
 模块 C  UI（Compose：主页/脚本/设置 + 悬浮球）
 模块 D  可选按需单帧截图（MediaProjection，默认关闭）

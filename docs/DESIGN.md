@@ -105,17 +105,16 @@ start(source, task):
 - 回复解析 `ai/ReplyParser`：容忍 ```json 围栏 / 裸数组 / 夹带文本（括号配对扫描）
 - 防失控：步数上限 60；模型输出解析失败则任务终止并记录日志
 
-### B4 PiSource（pi agent 对接）—— **预留设计，本期未实现**
-
-对接方式已按现状调研确定（pi 0.84.4 验证过 CLI 参数），实现时照此开发：
-
-- 依赖 `com.hierynomus:sshj`，SSH 连服务器（host/port/user/password 可配置），exec：
+### B4 PiSource（pi agent 对接）✅ 已实现
+- sshj 连服务器（host/port/user/password 可配置），exec：
   `export PATH=<pi目录>:$PATH; "<pi路径>" -p --no-session --no-tools`
 - 载荷（stdin）：协议说明 + 快照 + 近期结果 → stdout 回复 → ReplyParser 解析
 - `--no-tools` 确保只输出命令不做操作；模型/Provider 复用服务器 pi 已有配置（如 qiniullm）
-- 注意：pi 脚本依赖 node，服务器 PATH 只在 .zshrc，命令里必须先 export PATH
+- 已在 ddeb 实测：完整协议提示词下 pi 严格输出 `[{"type":"click","elementId":3}]` 格式；
+  ReplyParser 另含"异形命令归一化"容错（action→type、tap→click、id→elementId）
+- 注意：pi 是脚本且依赖 node，服务器 PATH 只在 .zshrc，命令里必须先 export PATH
 - 每步一次 SSH exec，实现简单、无长连接协议负担（v1 权衡；后续可改 `pi --mode rpc` 长会话）
-- UI 预留：设置页加 pi 服务器配置卡；主页"大脑"下拉加 pi agent 选项
+- UI：设置页 pi 服务器配置卡；主页"大脑"下拉切换 内置 LLM / pi agent
 
 ### B5 RemoteClient（远程人工指挥）
 - 手机端 OkHttp WebSocket **主动外连** ddeb 中转（无 NAT 问题），2s→30s 指数退避重连

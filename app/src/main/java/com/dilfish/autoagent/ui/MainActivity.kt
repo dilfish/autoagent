@@ -62,6 +62,7 @@ import com.dilfish.autoagent.console.ConsoleSession
 import com.dilfish.autoagent.engine.AgentBus
 import com.dilfish.autoagent.engine.TaskContext
 import com.dilfish.autoagent.engine.TaskRunner
+import com.dilfish.autoagent.pi.PiSource
 import com.dilfish.autoagent.remote.RemoteManager
 import com.dilfish.autoagent.settings.AppSettings
 import com.dilfish.autoagent.shot.ProjectionService
@@ -127,6 +128,8 @@ fun HomeScreen(scripts: List<Script>, selectedId: String?, onSelect: (String) ->
     val logs by AgentBus.logs.collectAsState()
     var pickerOpen by remember { mutableStateOf(false) }
     var aiTask by remember { mutableStateOf("") }
+    var aiEngine by remember { mutableStateOf("llm") }
+    var engineMenu by remember { mutableStateOf(false) }
 
     val selected = scripts.firstOrNull { it.id == selectedId }
 
@@ -186,7 +189,16 @@ fun HomeScreen(scripts: List<Script>, selectedId: String?, onSelect: (String) ->
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("AI 任务", style = MaterialTheme.typography.titleMedium)
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("大脑：内置 LLM", fontSize = 13.sp)
+                    Text("大脑：", fontSize = 13.sp)
+                    Box {
+                        OutlinedButton(onClick = { engineMenu = true }) {
+                            Text(if (aiEngine == "llm") "内置 LLM" else "pi agent")
+                        }
+                        DropdownMenu(expanded = engineMenu, onDismissRequest = { engineMenu = false }) {
+                            DropdownMenuItem(text = { Text("内置 LLM") }, onClick = { aiEngine = "llm"; engineMenu = false })
+                            DropdownMenuItem(text = { Text("pi agent") }, onClick = { aiEngine = "pi"; engineMenu = false })
+                        }
+                    }
                 }
                 OutlinedTextField(
                     value = aiTask,
@@ -197,14 +209,22 @@ fun HomeScreen(scripts: List<Script>, selectedId: String?, onSelect: (String) ->
                 Button(
                     onClick = {
                         val desc = aiTask.trim()
-                        val baseUrl = AppSettings.llmBaseUrl(context)
-                        val apiKey = AppSettings.llmApiKey(context)
-                        val model = AppSettings.llmModel(context)
-                        if (baseUrl.isEmpty() || apiKey.isEmpty() || model.isEmpty()) {
-                            AgentBus.log("请先在「设置」里配置 LLM API（base_url / key / model）")
-                            return@Button
+                        if (aiEngine == "llm") {
+                            val baseUrl = AppSettings.llmBaseUrl(context)
+                            val apiKey = AppSettings.llmApiKey(context)
+                            val model = AppSettings.llmModel(context)
+                            if (baseUrl.isEmpty() || apiKey.isEmpty() || model.isEmpty()) {
+                                AgentBus.log("请先在「设置」里配置 LLM API（base_url / key / model）")
+                                return@Button
+                            }
+                            TaskRunner.start(LlmSource(LlmClient(baseUrl, apiKey, model)), TaskContext(desc))
+                        } else {
+                            if (AppSettings.piHost(context).isEmpty()) {
+                                AgentBus.log("请先在「设置」里配置 pi 服务器")
+                                return@Button
+                            }
+                            TaskRunner.start(PiSource(context.applicationContext), TaskContext(desc))
                         }
-                        TaskRunner.start(LlmSource(LlmClient(baseUrl, apiKey, model)), TaskContext(desc))
                         aiTask = ""
                     },
                     enabled = serviceOk && !running && aiTask.isNotBlank(),
@@ -592,6 +612,48 @@ fun SettingsScreen() {
                         as MediaProjectionManager
                     launcher.launch(pm.createScreenCaptureIntent())
                 }) { Text("授权录屏") }
+            }
+        }
+
+        Card(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("pi agent（SSH 到服务器）", style = MaterialTheme.typography.titleMedium)
+                var piHost by remember { mutableStateOf(AppSettings.piHost(context)) }
+                var piPort by remember { mutableStateOf(AppSettings.piPort(context).toString()) }
+                var piUser by remember { mutableStateOf(AppSettings.piUser(context)) }
+                var piPassword by remember { mutableStateOf(AppSettings.piPassword(context)) }
+                var piBin by remember { mutableStateOf(AppSettings.piBinPath(context)) }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = piHost, onValueChange = { piHost = it },
+                        label = { Text("主机") }, modifier = Modifier.weight(1f),
+                    )
+                    OutlinedTextField(
+                        value = piPort, onValueChange = { piPort = it.filter { c -> c.isDigit() } },
+                        label = { Text("端口") }, modifier = Modifier.weight(0.5f),
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = piUser, onValueChange = { piUser = it },
+                        label = { Text("用户") }, modifier = Modifier.weight(1f),
+                    )
+                    OutlinedTextField(
+                        value = piPassword, onValueChange = { piPassword = it },
+                        label = { Text("密码") },
+                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                OutlinedTextField(
+                    value = piBin, onValueChange = { piBin = it },
+                    label = { Text("pi 可执行文件路径") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Button(onClick = {
+                    AppSettings.setPi(context, piHost, piPort.toIntOrNull() ?: 22, piUser, piPassword, piBin)
+                    AgentBus.log("pi 配置已保存")
+                }) { Text("保存") }
             }
         }
 

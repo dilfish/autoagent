@@ -73,12 +73,16 @@ PORT=8787 TOKEN=$TOKEN nohup node relay.js > relay.log 2>&1 &
 - API Key、模型名（如 GPT-5.6 Luna）
 - 保存后回主页 → AI 任务卡 → 大脑选「内置 LLM」→ 输入任务 → 「AI 执行」
 
-### 5.2 pi agent（ddeb 服务器）—— 预留功能，本期未实现
+### 5.2 pi agent（ddeb 服务器）✅ 已实现
 
-实现后配置方式如下（设计见 docs/DESIGN.md B4 节）：
+设置 → pi agent：
 - 主机 `deb.871116.xyz`、端口 22、用户 `root`、密码
 - pi 路径：`/root/.local/share/pi-node/node-v22.23.2-linux-x64/bin/pi`
-- 模型/Provider 跟随服务器上 `~/.pi/agent` 的配置（当前 qiniullm / GPT-5.6 Luna）
+  （App 会自动把 pi 所在目录加进 PATH，服务器 PATH 只在 .zshrc）
+- 保存后主页 AI 任务 → 大脑选「pi agent」→ 输入任务 → 「AI 执行」
+
+模型/Provider 跟随服务器上 `~/.pi/agent` 的配置（当前 qiniullm / GPT-5.6 Luna）。
+已在 ddeb 实测：`echo "<快照>" | pi -p --no-session --no-tools` 按协议返回 JSON 命令数组。
 
 ## 6. 本地自动点击器（不需要网络和 AI）
 

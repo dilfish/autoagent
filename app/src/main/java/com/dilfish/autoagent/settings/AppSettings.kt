@@ -33,5 +33,21 @@ object AppSettings {
             .apply()
     }
 
-    // ---- B4 pi agent（预留，未实现；配置项在实现时再加） ----
+    // ---- B4 pi agent ----
+    fun piHost(ctx: Context): String = prefs(ctx).getString("pi_host", "") ?: ""
+    fun piPort(ctx: Context): Int = prefs(ctx).getString("pi_port", "22")?.toIntOrNull() ?: 22
+    fun piUser(ctx: Context): String = prefs(ctx).getString("pi_user", "root") ?: "root"
+    fun piPassword(ctx: Context): String = prefs(ctx).getString("pi_password", "") ?: ""
+    fun piBinPath(ctx: Context): String =
+        prefs(ctx).getString("pi_bin_path", "/root/.local/share/pi-node/node-v22.23.2-linux-x64/bin/pi") ?: ""
+
+    fun setPi(ctx: Context, host: String, port: Int, user: String, password: String, binPath: String) {
+        prefs(ctx).edit()
+            .putString("pi_host", host.trim())
+            .putString("pi_port", port.toString())
+            .putString("pi_user", user.trim())
+            .putString("pi_password", password)
+            .putString("pi_bin_path", binPath.trim())
+            .apply()
+    }
 }
