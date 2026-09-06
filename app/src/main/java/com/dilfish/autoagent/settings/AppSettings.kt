@@ -10,12 +10,14 @@ object AppSettings {
         ctx.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     // ---- B3 内置 LLM ----
+    fun llmProvider(ctx: Context): String = prefs(ctx).getString("llm_provider", "openai") ?: "openai"
     fun llmBaseUrl(ctx: Context): String = prefs(ctx).getString("llm_base_url", "") ?: ""
     fun llmApiKey(ctx: Context): String = prefs(ctx).getString("llm_api_key", "") ?: ""
     fun llmModel(ctx: Context): String = prefs(ctx).getString("llm_model", "") ?: ""
 
-    fun setLlm(ctx: Context, baseUrl: String, apiKey: String, model: String) {
+    fun setLlm(ctx: Context, provider: String, baseUrl: String, apiKey: String, model: String) {
         prefs(ctx).edit()
+            .putString("llm_provider", provider)
             .putString("llm_base_url", baseUrl.trim().removeSuffix("/"))
             .putString("llm_api_key", apiKey.trim())
             .putString("llm_model", model.trim())

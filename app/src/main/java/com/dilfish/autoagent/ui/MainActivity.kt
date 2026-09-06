@@ -56,7 +56,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dilfish.autoagent.accessibility.ClickAccessibilityService
-import com.dilfish.autoagent.ai.LlmClient
+import com.dilfish.autoagent.ai.LlmFactory
 import com.dilfish.autoagent.ai.LlmSource
 import com.dilfish.autoagent.console.ConsoleSession
 import com.dilfish.autoagent.engine.AgentBus
@@ -210,14 +210,22 @@ fun HomeScreen(scripts: List<Script>, selectedId: String?, onSelect: (String) ->
                     onClick = {
                         val desc = aiTask.trim()
                         if (aiEngine == "llm") {
+                            val providerType = AppSettings.llmProvider(context)
                             val baseUrl = AppSettings.llmBaseUrl(context)
                             val apiKey = AppSettings.llmApiKey(context)
                             val model = AppSettings.llmModel(context)
-                            if (baseUrl.isEmpty() || apiKey.isEmpty() || model.isEmpty()) {
-                                AgentBus.log("请先在「设置」里配置 LLM API（base_url / key / model）")
+                            if (apiKey.isEmpty() || model.isEmpty()) {
+                                AgentBus.log("请先在「设置」里配置 LLM API（协议 / key / model）")
                                 return@Button
                             }
-                            TaskRunner.start(LlmSource(LlmClient(baseUrl, apiKey, model)), TaskContext(desc))
+                            if (providerType == "openai" && baseUrl.isEmpty()) {
+                                AgentBus.log("OpenAI 兼容协议需要填写 Base URL（如 https://api.xx.com/v1）")
+                                return@Button
+                            }
+                            TaskRunner.start(
+                                LlmSource(LlmFactory.create(providerType, baseUrl, apiKey, model)),
+                                TaskContext(desc),
+                            )
                         } else {
                             if (AppSettings.piHost(context).isEmpty()) {
                                 AgentBus.log("请先在「设置」里配置 pi 服务器")
@@ -532,13 +540,42 @@ fun SettingsScreen() {
 
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("LLM API（OpenAI 兼容）", style = MaterialTheme.typography.titleMedium)
+                Text("LLM API", style = MaterialTheme.typography.titleMedium)
+                var provider by remember { mutableStateOf(AppSettings.llmProvider(context)) }
                 var baseUrl by remember { mutableStateOf(AppSettings.llmBaseUrl(context)) }
                 var apiKey by remember { mutableStateOf(AppSettings.llmApiKey(context)) }
                 var model by remember { mutableStateOf(AppSettings.llmModel(context)) }
+                var provMenu by remember { mutableStateOf(false) }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("协议：", fontSize = 13.sp)
+                    Box {
+                        OutlinedButton(onClick = { provMenu = true }) {
+                            Text(
+                                when (provider) {
+                                    "anthropic" -> "Anthropic (Claude)"
+                                    "gemini" -> "Gemini"
+                                    else -> "OpenAI 兼容"
+                                },
+                            )
+                        }
+                        DropdownMenu(expanded = provMenu, onDismissRequest = { provMenu = false }) {
+                            DropdownMenuItem(text = { Text("OpenAI 兼容") }, onClick = { provider = "openai"; provMenu = false })
+                            DropdownMenuItem(text = { Text("Anthropic (Claude)") }, onClick = { provider = "anthropic"; provMenu = false })
+                            DropdownMenuItem(text = { Text("Gemini") }, onClick = { provider = "gemini"; provMenu = false })
+                        }
+                    }
+                }
                 OutlinedTextField(
                     value = baseUrl, onValueChange = { baseUrl = it },
-                    label = { Text("Base URL（如 https://api.xx.com/v1）") },
+                    label = {
+                        Text(
+                            when (provider) {
+                                "anthropic" -> "Base URL（留空 = https://api.anthropic.com）"
+                                "gemini" -> "Base URL（留空 = 官方 generativelanguage.googleapis.com）"
+                                else -> "Base URL（如 https://api.xx.com/v1）"
+                            },
+                        )
+                    },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
@@ -553,7 +590,7 @@ fun SettingsScreen() {
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Button(onClick = {
-                    AppSettings.setLlm(context, baseUrl, apiKey, model)
+                    AppSettings.setLlm(context, provider, baseUrl, apiKey, model)
                     AgentBus.log("LLM 配置已保存")
                 }) { Text("保存") }
             }

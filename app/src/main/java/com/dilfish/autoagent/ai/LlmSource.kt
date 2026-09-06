@@ -8,10 +8,10 @@ import com.dilfish.autoagent.engine.StepResult
 import com.dilfish.autoagent.engine.TaskContext
 
 /**
- * B3 内置 LLM 命令生成器：OpenAI 兼容 API，纯文本交互（节点树快照 + 执行历史）。
+ * B3 内置 LLM 命令生成器：支持三种主流协议（OpenAI 兼容 / Anthropic / Gemini），纯文本交互。
  */
 class LlmSource(
-    private val client: LlmClient,
+    private val provider: LlmProvider,
     private val historyLimit: Int = 6,
 ) : CommandSource {
 
@@ -47,7 +47,7 @@ class LlmSource(
         messages.add(ChatMessage("user", user))
 
         val reply = try {
-            client.chat(messages)
+            provider.chat(messages)
         } catch (e: Exception) {
             AgentBus.log("LLM 请求失败: ${e.message}")
             throw e

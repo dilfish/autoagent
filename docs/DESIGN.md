@@ -98,11 +98,16 @@ start(source, task):
   `scroll up`、`back/home/recents`、`wait 1000`、`getElements`、`done/fail`、原始 JSON
 - 用于调试协议与人工单步操作
 
-### B3 LlmSource（内置 LLM）
-- OpenAI 兼容 `POST {base_url}/chat/completions`（OkHttp），纯文本
+### B3 LlmSource（内置 LLM）✅ 支持三种主流协议
+- 协议抽象 `ai/LlmProvider`，三种实现由设置页下拉选择：
+  1. **OpenAI 兼容**（默认）：`POST {base_url}/chat/completions`，Bearer 认证 —— DeepSeek/Qwen/Moonshot/qiniu 等绝大多数服务
+  2. **Anthropic**：`POST {base}/v1/messages`，`x-api-key` + `anthropic-version` 头，system 独立于 messages，必须带 max_tokens
+  3. **Gemini**：`POST {base}/models/{model}:generateContent?key=...`，system 放 `system_instruction`，assistant 角色名是 `model`
+- Anthropic/Gemini 的 Base URL 留空时用官方端点；OpenAI 兼容必须填（各服务商路径不一）
 - system prompt：命令协议说明书 + 规则（元素编号易变、失败自纠、禁操作支付页等）
 - user 消息：当前快照 + 最近 6 步执行结果（命令→成功/失败）
-- 回复解析 `ai/ReplyParser`：容忍 ```json 围栏 / 裸数组 / 夹带文本（括号配对扫描）
+- 回复解析 `ai/ReplyParser`：容忍 ```json 围栏 / 裸数组 / 夹带文本（括号配对扫描）；
+  含"异形命令归一化"容错（action→type、tap→click、id→elementId）
 - 防失控：步数上限 60；模型输出解析失败则任务终止并记录日志
 
 ### B4 PiSource（pi agent 对接）✅ 已实现
