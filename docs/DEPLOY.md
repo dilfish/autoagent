@@ -36,7 +36,7 @@ JAVA_HOME=/usr/local/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home ./gradlew 
 ## 3. 部署远程指挥中转（ddeb 服务器）
 
 ```bash
-ssh root@deb.871116.xyz
+ssh root@your.server.com
 apt install -y nodejs npm   # 服务器已有 Node 22 可跳过
 mkdir -p /opt/autoagent-relay/public
 # 上传 relay.js 和 public/index.html（或用 git 拉取）
@@ -53,12 +53,12 @@ PORT=8787 TOKEN=$TOKEN nohup node relay.js > relay.log 2>&1 &
 ## 4. 配置远程指挥
 
 **手机端**（AutoAgent → 设置 → 远程指挥）：
-- 中转 WebSocket：`ws://deb.871116.xyz:8787/ws/phone`
+- 中转 WebSocket：`ws://your.server.com:8787/ws/phone`
 - Token：部署时生成的 `$TOKEN`
 - 点「连接」，状态变"已连接"即成功
 
 **操作端**（你的电脑浏览器）：
-- 打开 `http://deb.871116.xyz:8787/?token=$TOKEN`
+- 打开 `http://your.server.com:8787/?token=$TOKEN`
 - 左侧：实时节点树快照（手机端每 350ms 防抖推送）、「刷新元素」、截图按钮
 - 右侧：命令行，支持 `click [03]`、`click 540 1200`、`inputText [02] 你好`、
   `back`、`home`、`scroll up`、`wait 1000`、`getElements`，或直接粘贴协议 JSON
@@ -70,18 +70,18 @@ PORT=8787 TOKEN=$TOKEN nohup node relay.js > relay.log 2>&1 &
 
 设置 → LLM API：
 - Base URL：如 `https://open.qiniu.com/v1`（OpenAI 兼容端点）
-- API Key、模型名（如 GPT-5.6 Luna）
+- API Key、模型名
 - 保存后回主页 → AI 任务卡 → 大脑选「内置 LLM」→ 输入任务 → 「AI 执行」
 
 ### 5.2 pi agent（ddeb 服务器）✅ 已实现
 
 设置 → pi agent：
-- 主机 `deb.871116.xyz`、端口 22、用户 `root`、密码
+- 主机 `your.server.com`、端口 22、用户 `root`、密码
 - pi 路径：`/root/.local/share/pi-node/node-v22.23.2-linux-x64/bin/pi`
   （App 会自动把 pi 所在目录加进 PATH，服务器 PATH 只在 .zshrc）
 - 保存后主页 AI 任务 → 大脑选「pi agent」→ 输入任务 → 「AI 执行」
 
-模型/Provider 跟随服务器上 `~/.pi/agent` 的配置（当前 qiniullm / GPT-5.6 Luna）。
+模型/Provider 跟随服务器上 `~/.pi/agent` 的配置（你在服务器上配置的模型）。
 已在 ddeb 实测：`echo "<快照>" | pi -p --no-session --no-tools` 按协议返回 JSON 命令数组。
 
 ## 6. 本地自动点击器（不需要网络和 AI）

@@ -114,7 +114,7 @@ start(source, task):
 - sshj 连服务器（host/port/user/password 可配置），exec：
   `export PATH=<pi目录>:$PATH; "<pi路径>" -p --no-session --no-tools`
 - 载荷（stdin）：协议说明 + 快照 + 近期结果 → stdout 回复 → ReplyParser 解析
-- `--no-tools` 确保只输出命令不做操作；模型/Provider 复用服务器 pi 已有配置（如 qiniullm）
+- `--no-tools` 确保只输出命令不做操作；模型/Provider 复用服务器 pi 已有的模型配置
 - 已在 ddeb 实测：完整协议提示词下 pi 严格输出 `[{"type":"click","elementId":3}]` 格式；
   ReplyParser 另含"异形命令归一化"容错（action→type、tap→click、id→elementId）
 - 注意：pi 是脚本且依赖 node，服务器 PATH 只在 .zshrc，命令里必须先 export PATH

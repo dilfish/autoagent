@@ -45,6 +45,6 @@ APK 输出：`app/build/outputs/apk/debug/app-debug.apk`（debug 签名，可直
 # 启动: TOKEN=你的token PORT=8787 node relay.js
 ```
 
-- 手机端：设置页填 ws://deb.871116.xyz:8787/ws/phone + token
-- 电脑端：浏览器打开 http://deb.871116.xyz:8787/?token=你的token
+- 手机端：设置页填 ws://your.server.com:8787/ws/phone + token
+- 电脑端：浏览器打开 http://your.server.com:8787/?token=你的token
   左侧实时节点树 + 截图，右侧命令行直接操作她的手机

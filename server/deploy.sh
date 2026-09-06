@@ -2,7 +2,7 @@
 # 部署 AutoAgent 中转服务到 ddeb
 # 用法: ./server/deploy.sh
 set -e
-HOST=root@deb.871116.xyz
+HOST=root@your.server.com
 DIR=/opt/autoagent-relay
 
 ssh $HOST "mkdir -p $DIR/public"

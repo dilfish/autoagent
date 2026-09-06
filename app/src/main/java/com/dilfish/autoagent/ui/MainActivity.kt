@@ -604,7 +604,7 @@ fun SettingsScreen() {
                 val remoteState by RemoteManager.state.collectAsState()
                 OutlinedTextField(
                     value = wsUrl, onValueChange = { wsUrl = it },
-                    label = { Text("中转 WebSocket（如 ws://deb.871116.xyz:8787/ws/phone）") },
+                    label = { Text("中转 WebSocket（如 ws://your.server.com:8787/ws/phone）") },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
