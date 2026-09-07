@@ -7,14 +7,14 @@ plugins {
 
 android {
     namespace = "com.dilfish.autoagent"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.dilfish.autoagent"
-        minSdk = 24
-        targetSdk = 34
-        versionCode = 4
-        versionName = "0.4.0"
+        minSdk = 35
+        targetSdk = 35
+        versionCode = 5
+        versionName = "0.5.0"
     }
 
     buildTypes {

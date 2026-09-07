@@ -7,7 +7,7 @@
 ```bash
 export ALL_PROXY=socks5h://localhost:1140; brew install openjdk@17 android-commandlinetools
 export JAVA_HOME=/usr/local/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
-/usr/local/share/android-commandlinetools/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+/usr/local/share/android-commandlinetools/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 ```
 
 日常构建（仓库根目录）：

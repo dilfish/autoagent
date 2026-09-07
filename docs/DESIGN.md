@@ -166,7 +166,7 @@ start(source, task):
 |---|---|
 | 节点树而非截图做感知 | 零额外权限、省 token、对 LLM 更可读；Canvas/游戏场景不可用（已知取舍） |
 | dispatchGesture 而非 ACTION_CLICK 为主 | 部分应用只响应真实触摸；可点元素先 ACTION_CLICK 再回退手势 |
-| minSdk 24 | dispatchGesture 的最低要求 |
+| minSdk 35（Android 15） | 只支持自用新机；旧版本曾用 24（dispatchGesture 的最低要求），v0.5.0 起不再兼容旧手机 |
 | 统一 TaskRunner 循环 | 人工/AI/脚本共用同一协议与日志，行为一致、便于调试 |
 | 密码框不输出文本 | 快照会进入日志/LLM/远程通道，必须防泄露 |
 | 中转服务自建 | 手机主动外连无 NAT 问题；数据不经第三方 |
