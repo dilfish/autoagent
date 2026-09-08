@@ -788,6 +788,6 @@ fun SettingsScreen() {
         }
 
         Spacer(Modifier.height(80.dp))
-        Text("AutoAgent v0.5.1", fontSize = 12.sp)
+        Text("AutoAgent v0.5.2", fontSize = 12.sp)
     }
 }

@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AutoAgent Logo — Αα 配色预览</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px;
+    font-family: -apple-system, "SF Pro Text", "PingFang SC", "Helvetica Neue", sans-serif;
+    background: #0b0b0d; color: #e8e8ed;
+  }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 6px; }
+  .sub { color: #9a9aa3; margin: 0 0 28px; font-size: 14px; line-height: 1.5; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+    gap: 18px;
+  }
+  .card {
+    background: #16161a;
+    border: 1px solid #2a2a30;
+    border-radius: 16px;
+    padding: 14px;
+    text-align: center;
+  }
+  .icon {
+    width: 112px; height: 112px;
+    margin: 0 auto 12px;
+    border-radius: 24px;
+    display: grid; place-items: center;
+    font-family: "Times New Roman", Times, "Noto Serif", serif;
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    user-select: none;
+    box-shadow: 0 10px 28px rgba(0,0,0,.35);
+  }
+  .icon.circle { border-radius: 50%; }
+  .icon.squircle { border-radius: 28%; }
+  .mark { font-size: 54px; line-height: 1; }
+  .name { font-size: 13px; color: #c8c8d0; margin-bottom: 4px; }
+  .meta { font-size: 11px; color: #7d7d88; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .section { margin: 36px 0 14px; font-size: 15px; color: #b0b0ba; font-weight: 600; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
+  button {
+    background: #2a2a33; color: #eee; border: 1px solid #3a3a44;
+    border-radius: 10px; padding: 8px 12px; cursor: pointer; font-size: 13px;
+  }
+  button:hover { background: #34343f; }
+  .picked {
+    margin-top: 28px; padding: 16px; border-radius: 14px;
+    background: #121218; border: 1px dashed #3a3a48; color: #9a9aa3; font-size: 13px;
+  }
+</style>
+</head>
+<body>
+  <h1>AutoAgent Logo 预览 · Αα</h1>
+  <p class="sub">黑底蓝字方向。每个卡片是一版启动图标候选：大写 Α + 小写 α。<br>
+  点「选这个」告诉我编号即可（例如 A3 / B2）。也可说明要改字号、间距、圆角。</p>
+
+  <div class="section">A. 经典蓝系（纯黑底）</div>
+  <div class="grid" id="gA"></div>
+
+  <div class="section">B. 深蓝底 + 亮蓝字</div>
+  <div class="grid" id="gB"></div>
+
+  <div class="section">C. 黑底 + 渐变字 / 描边</div>
+  <div class="grid" id="gC"></div>
+
+  <div class="section">D. 形状变体（同色，比圆角）</div>
+  <div class="grid" id="gD"></div>
+
+  <div class="picked" id="picked">当前选择：还没有。点卡片下方的「选这个」。</div>
+
+<script>
+const blues = [
+  { id:'A1', bg:'#000000', fg:'#4F7CFF', name:'原蓝 #4F7CFF' },
+  { id:'A2', bg:'#000000', fg:'#3B82F6', name:'Tailwind Blue-500' },
+  { id:'A3', bg:'#000000', fg:'#60A5FA', name:'亮蓝 Blue-400' },
+  { id:'A4', bg:'#000000', fg:'#2563EB', name:'深蓝 Blue-600' },
+  { id:'A5', bg:'#000000', fg:'#38BDF8', name:'天蓝 Sky-400' },
+  { id:'A6', bg:'#000000', fg:'#22D3EE', name:'青蓝 Cyan-400' },
+  { id:'A7', bg:'#000000', fg:'#818CF8', name:'靛紫 Indigo-400' },
+  { id:'A8', bg:'#000000', fg:'#93C5FD', name:'淡蓝 Blue-300' },
+];
+
+const deep = [
+  { id:'B1', bg:'#0A0A12', fg:'#5B8CFF', name:'午夜黑 + 中亮蓝' },
+  { id:'B2', bg:'#05070F', fg:'#6EA8FF', name:'墨蓝黑 + 冰蓝' },
+  { id:'B3', bg:'#0B1220', fg:'#7DD3FC', name:'深蓝底 + 浅天蓝' },
+  { id:'B4', bg:'#020617', fg:'#60A5FA', name:'Slate-950 + Blue-400' },
+  { id:'B5', bg:'#111827', fg:'#93C5FD', name:'Gray-900 + 淡蓝' },
+  { id:'B6', bg:'#0F172A', fg:'#38BDF8', name:'Slate-900 + Sky' },
+];
+
+function card(c, extraClass='') {
+  const el = document.createElement('div');
+  el.className = 'card';
+  el.innerHTML = `
+    <div class="icon ${extraClass}" style="background:${c.bg};color:${c.fg}">
+      <span class="mark">Αα</span>
+    </div>
+    <div class="name">${c.id} · ${c.name}</div>
+    <div class="meta">${c.bg} / ${c.fg}</div>
+    <div class="row" style="justify-content:center">
+      <button data-id="${c.id}">选这个</button>
+    </div>`;
+  el.querySelector('button').onclick = () => {
+    document.getElementById('picked').textContent =
+      `当前选择：${c.id} — ${c.name}（底 ${c.bg} / 字 ${c.fg}${extraClass ? ' / ' + extraClass : ''}）`;
+  };
+  return el;
+}
+
+function fill(id, list, cls='') {
+  const g = document.getElementById(id);
+  list.forEach(c => g.appendChild(card(c, cls)));
+}
+
+fill('gA', blues, 'squircle');
+fill('gB', deep, 'squircle');
+
+const special = [
+  { id:'C1', bg:'#000000', fg:'transparent', name:'蓝→青渐变字',
+    style:'background:#000; background-clip:unset;',
+    markStyle:'background:linear-gradient(135deg,#60A5FA,#22D3EE);-webkit-background-clip:text;color:transparent;' },
+  { id:'C2', bg:'#000000', fg:'#60A5FA', name:'蓝字 + 外发光',
+    markStyle:'color:#60A5FA;text-shadow:0 0 18px rgba(96,165,250,.85),0 0 36px rgba(59,130,246,.45);' },
+  { id:'C3', bg:'#000000', fg:'#93C5FD', name:'淡蓝字 + 细描边感',
+    markStyle:'color:#93C5FD;text-shadow:0 0 1px #1e3a8a,0 0 1px #1e3a8a;' },
+  { id:'C4', bg:'#000000', fg:'#4F7CFF', name:'字距拉开 Α α',
+    markStyle:'color:#4F7CFF;letter-spacing:0.08em;' },
+];
+
+const gC = document.getElementById('gC');
+special.forEach(c => {
+  const el = document.createElement('div');
+  el.className = 'card';
+  el.innerHTML = `
+    <div class="icon squircle" style="background:${c.bg}">
+      <span class="mark" style="${c.markStyle}">${c.id==='C4' ? 'Α α' : 'Αα'}</span>
+    </div>
+    <div class="name">${c.id} · ${c.name}</div>
+    <div class="meta">${c.bg}</div>
+    <div class="row" style="justify-content:center"><button data-id="${c.id}">选这个</button></div>`;
+  el.querySelector('button').onclick = () => {
+    document.getElementById('picked').textContent = `当前选择：${c.id} — ${c.name}`;
+  };
+  gC.appendChild(el);
+});
+
+const shapeBase = { bg:'#000000', fg:'#60A5FA' };
+[
+  { id:'D1', name:'超椭圆（iOS 风）', cls:'squircle' },
+  { id:'D2', name:'正圆', cls:'circle' },
+  { id:'D3', name:'圆角方（24px）', cls:'', style:'border-radius:24px' },
+  { id:'D4', name:'小圆角（16px）', cls:'', style:'border-radius:16px' },
+].forEach(s => {
+  const el = document.createElement('div');
+  el.className = 'card';
+  el.innerHTML = `
+    <div class="icon ${s.cls}" style="background:${shapeBase.bg};color:${shapeBase.fg};${s.style||''}">
+      <span class="mark">Αα</span>
+    </div>
+    <div class="name">${s.id} · ${s.name}</div>
+    <div class="meta">同色对比形状</div>
+    <div class="row" style="justify-content:center"><button>选这个</button></div>`;
+  el.querySelector('button').onclick = () => {
+    document.getElementById('picked').textContent = `当前选择：${s.id} — ${s.name}（黑底 #60A5FA）`;
+  };
+  document.getElementById('gD').appendChild(el);
+});
+</script>
+</body>
+</html>
