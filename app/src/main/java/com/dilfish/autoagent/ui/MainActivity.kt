@@ -16,11 +16,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
@@ -521,7 +524,11 @@ fun ConsoleScreen() {
 fun SettingsScreen() {
     val context = LocalContext.current
     Column(
-        Modifier.fillMaxSize().padding(16.dp),
+        Modifier
+            .fillMaxSize()
+            .imePadding()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text("设置", style = MaterialTheme.typography.titleLarge)
@@ -537,6 +544,28 @@ fun SettingsScreen() {
                 Button(onClick = {
                     context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
                 }) { Text("打开无障碍设置") }
+            }
+        }
+
+        Card(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("保活（Vivo / OriginOS 等）", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "无障碍开了又关，常见不是签名问题，而是服务启动失败或系统杀后台。" +
+                        "请确认：①允许受限设置；②电池→不优化/允许后台高耗电；③自启动管理允许；" +
+                        "④「后台弹出界面/悬浮窗」相关权限允许（部分机型需要）。" +
+                        "打开无障碍后约 1 秒才出现悬浮球属正常（已做延迟挂载防崩）。",
+                    fontSize = 13.sp,
+                )
+                Button(onClick = {
+                    try {
+                        context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                            data = android.net.Uri.fromParts("package", context.packageName, null)
+                        })
+                    } catch (_: Exception) {
+                        context.startActivity(Intent(Settings.ACTION_SETTINGS))
+                    }
+                }) { Text("打开应用详情（改白名单）") }
             }
         }
 
@@ -584,6 +613,8 @@ fun SettingsScreen() {
                     value = apiKey, onValueChange = { apiKey = it },
                     label = { Text("API Key") },
                     visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                    singleLine = false,
+                    maxLines = 4,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
@@ -756,6 +787,7 @@ fun SettingsScreen() {
             }
         }
 
-        Text("AutoAgent v0.1.0", fontSize = 12.sp)
+        Spacer(Modifier.height(80.dp))
+        Text("AutoAgent v0.5.1", fontSize = 12.sp)
     }
 }

@@ -73,12 +73,27 @@ class ClickAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
         instance = this
         _serviceRunning.value = true
-        ballManager = FloatingBallManager(this).also { it.attach() }
         AgentBus.log("无障碍服务已连接")
+        // 延迟挂悬浮球：部分国产 ROM（Vivo OriginOS 等）在 onServiceConnected 同步加 overlay 会失败并导致服务被系统立刻关掉
+        handler.postDelayed({
+            try {
+                if (ballManager == null) {
+                    ballManager = FloatingBallManager(this)
+                }
+                ballManager?.attach()
+            } catch (t: Throwable) {
+                AgentBus.log("悬浮球挂载失败（服务仍可用）: ${t.message}")
+            }
+        }, 800)
         refreshSnapshot()
     }
 
     override fun onDestroy() {
+        try {
+            ballManager?.detach()
+        } catch (_: Exception) {
+        }
+        ballManager = null
         instance = null
         _serviceRunning.value = false
         AgentBus.log("无障碍服务已断开")

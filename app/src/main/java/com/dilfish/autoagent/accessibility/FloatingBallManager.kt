@@ -38,7 +38,8 @@ class FloatingBallManager(private val service: ClickAccessibilityService) {
     private var dragging = false
 
     @SuppressLint("ClickableViewAccessibility")
-    fun attach() {
+    fun attach(): Boolean {
+        if (ballView != null) return true
         val size = (52 * density).toInt()
         val ball = TextView(service).apply {
             text = "启"
@@ -91,9 +92,15 @@ class FloatingBallManager(private val service: ClickAccessibilityService) {
             }
         }
 
-        wm.addView(ball, params)
-        ballView = ball
-        ballParams = params
+        return try {
+            wm.addView(ball, params)
+            ballView = ball
+            ballParams = params
+            true
+        } catch (t: Throwable) {
+            AgentBus.log("悬浮球 addView 失败: ${t.javaClass.simpleName}: ${t.message}")
+            false
+        }
     }
 
     private fun togglePanel() {
