@@ -60,3 +60,27 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlin:kotlin-test:1.9.24")
 }
+
+// 输出文件名带版本号，避免一堆 app-debug.apk 分不清
+val apkVersionName = android.defaultConfig.versionName ?: "unknown"
+val apkVersionCode = android.defaultConfig.versionCode
+listOf("debug", "release").forEach { buildType ->
+    val assembleName = "assemble${buildType.replaceFirstChar { c -> c.uppercase() }}"
+    tasks.matching { it.name == assembleName }.configureEach {
+        doLast {
+            val dir = layout.buildDirectory.dir("outputs/apk/$buildType").get().asFile
+            dir.listFiles()
+                ?.filter { it.isFile && it.name.endsWith(".apk") && !it.name.startsWith("AutoAgent-") }
+                ?.forEach { apk ->
+                    val target = dir.resolve("AutoAgent-${apkVersionName}-${apkVersionCode}-${buildType}.apk")
+                    if (target.exists()) target.delete()
+                    if (apk.renameTo(target)) {
+                        logger.lifecycle("APK -> ${target.name}")
+                    } else {
+                        apk.copyTo(target, overwrite = true)
+                        logger.lifecycle("APK copied -> ${target.name}")
+                    }
+                }
+        }
+    }
+}
