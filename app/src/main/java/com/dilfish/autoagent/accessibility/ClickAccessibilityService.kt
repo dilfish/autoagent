@@ -74,15 +74,18 @@ class ClickAccessibilityService : AccessibilityService() {
         instance = this
         _serviceRunning.value = true
         AgentBus.log("无障碍服务已连接")
+        com.dilfish.autoagent.log.AppLog.i("a11y", "onServiceConnected")
         // 延迟挂悬浮球：部分国产 ROM（Vivo OriginOS 等）在 onServiceConnected 同步加 overlay 会失败并导致服务被系统立刻关掉
         handler.postDelayed({
             try {
                 if (ballManager == null) {
                     ballManager = FloatingBallManager(this)
                 }
-                ballManager?.attach()
+                val ok = ballManager?.attach() == true
+                com.dilfish.autoagent.log.AppLog.i("a11y", "floating ball attach ok=$ok")
             } catch (t: Throwable) {
                 AgentBus.log("悬浮球挂载失败（服务仍可用）: ${t.message}")
+                com.dilfish.autoagent.log.AppLog.e("a11y", "floating ball attach crash", t)
             }
         }, 800)
         refreshSnapshot()
@@ -97,12 +100,14 @@ class ClickAccessibilityService : AccessibilityService() {
         instance = null
         _serviceRunning.value = false
         AgentBus.log("无障碍服务已断开")
+        com.dilfish.autoagent.log.AppLog.w("a11y", "onDestroy")
         super.onDestroy()
     }
 
     override fun onUnbind(intent: android.content.Intent?): Boolean {
         instance = null
         _serviceRunning.value = false
+        com.dilfish.autoagent.log.AppLog.w("a11y", "onUnbind")
         return super.onUnbind(intent)
     }
 
@@ -143,7 +148,8 @@ class ClickAccessibilityService : AccessibilityService() {
     // ---------- 命令执行 ----------
 
     suspend fun execute(cmd: Command): CommandResult = try {
-        when (cmd) {
+        com.dilfish.autoagent.log.AppLog.d("a11y", "execute ${cmd::class.simpleName}#${cmd.cmdId} $cmd")
+        val res = when (cmd) {
             is Command.Click -> doClick(cmd.cmdId, cmd.elementId, cmd.x, cmd.y, longPress = false)
             is Command.LongClick -> doClick(cmd.cmdId, cmd.elementId, cmd.x, cmd.y, longPress = true)
             is Command.InputText -> doInputText(cmd.cmdId, cmd.elementId, cmd.text)
@@ -173,7 +179,10 @@ class ClickAccessibilityService : AccessibilityService() {
             }
             is Command.Done, is Command.Fail -> CommandResult(cmd.cmdId, true)
         }
+        com.dilfish.autoagent.log.AppLog.d("a11y", "result #${res.cmdId} ok=${res.ok} err=${res.error} elementsChars=${res.elements?.length ?: 0}")
+        res
     } catch (t: Throwable) {
+        com.dilfish.autoagent.log.AppLog.e("a11y", "execute 异常 cmd=$cmd", t)
         CommandResult(cmd.cmdId, false, t.message ?: t.javaClass.simpleName)
     }
 

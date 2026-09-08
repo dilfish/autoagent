@@ -48,11 +48,17 @@ abstract class BaseHttpProvider {
 
     protected suspend fun post(url: String, headers: Map<String, String>, body: String): JsonObject =
         withContext(Dispatchers.IO) {
+            com.dilfish.autoagent.log.AppLog.d("llm", "HTTP POST $url bodyChars=${body.length}")
             val builder = Request.Builder().url(url).post(body.toRequestBody("application/json".toMediaType()))
             for ((k, v) in headers) builder.header(k, v)
+            val t0 = System.currentTimeMillis()
             val resp = http.newCall(builder.build()).execute()
             resp.use {
                 val text = it.body?.string() ?: ""
+                com.dilfish.autoagent.log.AppLog.d(
+                    "llm",
+                    "HTTP ${it.code} ${System.currentTimeMillis() - t0}ms respChars=${text.length}",
+                )
                 if (!it.isSuccessful) throw RuntimeException("LLM HTTP ${it.code}: ${text.take(300)}")
                 json.parseToJsonElement(text).jsonObject
             }

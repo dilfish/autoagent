@@ -6,6 +6,7 @@ import com.dilfish.autoagent.engine.CommandSource
 import com.dilfish.autoagent.engine.NodeTreeSnapshot
 import com.dilfish.autoagent.engine.StepResult
 import com.dilfish.autoagent.engine.TaskContext
+import com.dilfish.autoagent.log.AppLog
 
 /**
  * B3 内置 LLM 命令生成器：支持三种主流协议（OpenAI 兼容 / Anthropic / Gemini），纯文本交互。
@@ -45,18 +46,27 @@ class LlmSource(
             appendLine("## 请输出下一步命令（只输出一个 JSON 数组，不要输出其他内容）")
         }
         messages.add(ChatMessage("user", user))
+        AppLog.d(
+            "llm",
+            "chat provider=${provider.label} msgs=${messages.size} userChars=${user.length} snapChars=${screen?.text?.length ?: 0}",
+        )
 
+        val t0 = System.currentTimeMillis()
         val reply = try {
             provider.chat(messages)
         } catch (e: Exception) {
             AgentBus.log("LLM 请求失败: ${e.message}")
+            AppLog.e("llm", "chat 失败 provider=${provider.label}", e)
             throw e
         }
+        AppLog.d("llm", "chat ok ${System.currentTimeMillis() - t0}ms replyChars=${reply.length}")
         messages.add(ChatMessage("assistant", reply))
         AgentBus.log("LLM: ${reply.take(200)}")
+        AppLog.d("llm", "reply full: ${reply.take(4000)}")
 
         val cmds = ReplyParser.parse(reply)
             ?: throw RuntimeException("无法从模型回复中解析命令，请检查模型输出格式")
+        AppLog.d("llm", "parsed ${cmds.size} cmds: ${cmds.joinToString { it::class.simpleName + "#" + it.cmdId }}")
         return cmds
     }
 

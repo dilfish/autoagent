@@ -79,6 +79,7 @@ import com.dilfish.autoagent.script.ScriptStep
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        com.dilfish.autoagent.log.AppLog.init(this)
         setContent {
             MaterialTheme {
                 AutoAgentApp()
@@ -549,6 +550,34 @@ fun SettingsScreen() {
 
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("调试日志", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "调试包会记录 DEBUG 级全量日志（命令参数、快照摘要、网络/SSH 往返）。" +
+                        "导出后写入 Download/AutoAgent/，并可系统分享。",
+                    fontSize = 13.sp,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = {
+                        val file = com.dilfish.autoagent.log.AppLog.export(context)
+                        if (file != null) {
+                            try {
+                                com.dilfish.autoagent.log.AppLog.share(context, file)
+                            } catch (t: Throwable) {
+                                AgentBus.log("分享失败（文件已在 Download/AutoAgent）: ${t.message}")
+                            }
+                        } else {
+                            AgentBus.log("导出失败")
+                        }
+                    }) { Text("导出并分享") }
+                    OutlinedButton(onClick = {
+                        com.dilfish.autoagent.log.AppLog.clear()
+                    }) { Text("清空日志") }
+                }
+            }
+        }
+
+        Card(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("保活（Vivo / OriginOS 等）", style = MaterialTheme.typography.titleMedium)
                 Text(
                     "无障碍开了又关，常见不是签名问题，而是服务启动失败或系统杀后台。" +
@@ -788,6 +817,6 @@ fun SettingsScreen() {
         }
 
         Spacer(Modifier.height(80.dp))
-        Text("AutoAgent v0.5.2", fontSize = 12.sp)
+        Text("AutoAgent v0.6.0", fontSize = 12.sp)
     }
 }

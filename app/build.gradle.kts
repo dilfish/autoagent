@@ -13,13 +13,18 @@ android {
         applicationId = "com.dilfish.autoagent"
         minSdk = 24
         targetSdk = 36
-        versionCode = 7
-        versionName = "0.5.2"
+        versionCode = 8
+        versionName = "0.6.0"
+        buildConfigField("boolean", "VERBOSE_LOG", "true")
     }
 
     buildTypes {
+        debug {
+            buildConfigField("boolean", "VERBOSE_LOG", "true")
+        }
         release {
             isMinifyEnabled = false
+            buildConfigField("boolean", "VERBOSE_LOG", "false")
         }
     }
     compileOptions {
@@ -31,6 +36,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     testOptions {
         unitTests.isIncludeAndroidResources = false

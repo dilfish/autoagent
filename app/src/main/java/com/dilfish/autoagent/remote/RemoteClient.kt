@@ -4,6 +4,7 @@ import com.dilfish.autoagent.accessibility.ClickAccessibilityService
 import com.dilfish.autoagent.engine.AgentBus
 import com.dilfish.autoagent.engine.Command
 import com.dilfish.autoagent.engine.CommandResult
+import com.dilfish.autoagent.log.AppLog
 import com.dilfish.autoagent.shot.ScreenCapture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -46,15 +47,19 @@ class RemoteClient(private val wsUrl: String, private val token: String) {
     fun start() {
         if (enabled) return
         enabled = true
+        AppLog.i("remote", "start ws=$wsUrl")
         scope.launch {
             var backoff = 2_000L
             while (enabled) {
                 state.value = "连接中…"
+                AppLog.d("remote", "connecting… backoffWas=${backoff}ms")
                 val opened = connectOnce()
                 if (opened) {
                     backoff = 2_000L
+                    AppLog.i("remote", "connected")
                     // 挂起直到连接断开
                     while (enabled && socket != null) delay(500)
+                    AppLog.w("remote", "socket lost, will reconnect")
                 }
                 if (!enabled) break
                 state.value = "断开，${backoff / 1000}s 后重连"
@@ -62,6 +67,7 @@ class RemoteClient(private val wsUrl: String, private val token: String) {
                 backoff = (backoff * 2).coerceAtMost(30_000L)
             }
             state.value = "已停止"
+            AppLog.i("remote", "stopped")
         }
     }
 
@@ -89,11 +95,13 @@ class RemoteClient(private val wsUrl: String, private val token: String) {
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 state.value = "连接失败: ${t.message?.take(80)}"
+                AppLog.e("remote", "onFailure http=${response?.code}", t)
                 socket = null
                 if (!latch.isCompleted) latch.complete(false)
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                AppLog.d("remote", "onClosed code=$code reason=$reason")
                 socket = null
                 if (!latch.isCompleted) latch.complete(false)
             }
@@ -130,10 +138,12 @@ class RemoteClient(private val wsUrl: String, private val token: String) {
                     return
                 }
                 AgentBus.log("远程命令: $cmd")
+                AppLog.d("remote", "cmd in: $cmd")
                 scope.launch {
                     val svc = ClickAccessibilityService.instance
                     val res = svc?.execute(cmd)
                         ?: CommandResult(cmd.cmdId, false, "无障碍服务未开启")
+                    AppLog.d("remote", "cmd out #${res.cmdId} ok=${res.ok} err=${res.error}")
                     send(
                         buildJsonObject {
                             put("type", "result")
@@ -145,12 +155,15 @@ class RemoteClient(private val wsUrl: String, private val token: String) {
                 }
             }
             "screenshotRequest" -> {
+                AppLog.d("remote", "screenshotRequest")
                 scope.launch {
                     val b64 = ScreenCapture.capture()
                     if (b64 != null) {
+                        AppLog.d("remote", "screenshot ok bytes≈${b64.length * 3 / 4}")
                         send(buildJsonObject { put("type", "screenshot"); put("data", b64) })
                     } else {
                         AgentBus.log("截图失败（未授权录屏或超时）")
+                        AppLog.w("remote", "screenshot failed")
                     }
                 }
             }
